@@ -75,18 +75,33 @@
                     <el-table-column label="游戏类型"
                         align="center" prop="gameTypes" :show-overflow-tooltip="true" >
                         <template slot-scope="scope">
-                            <span>{{ stringsJoin(scope.row.gameTypes) }}</span>
+                            <span>{{ selectOptionsJoin("casino_games",scope.row.gameTypes) }}</span>
                         </template>
                     </el-table-column>    
                     <el-table-column label="支付方式"
-                        align="center" prop="paymentMethods" :show-overflow-tooltip="true" />
+                        align="center" prop="paymentMethods" :show-overflow-tooltip="true" >
+                        <template slot-scope="scope">
+                            <span>{{ selectOptionsJoin("casino_payment_methods",scope.row.paymentMethods) }}</span>
+                        </template>
+                        </el-table-column> 
                     <el-table-column label="支持语言"
-                        align="center" prop="languages" :show-overflow-tooltip="true" />
+                        align="center" prop="languages" :show-overflow-tooltip="true" >
+                        <template slot-scope="scope">
+                            <span>{{ selectOptionsJoin("language",scope.row.languages) }}</span>
+                        </template>
+                    </el-table-column>
                     <el-table-column label="地区"
-                        align="center" prop="regions" :show-overflow-tooltip="true" />
-                    <el-table-column label="支持语言"
-                        align="center" prop="languages" :show-overflow-tooltip="true" />
-                    <el-table-column label="地区" align="center" prop="regions" :show-overflow-tooltip="true" />
+                        align="center" prop="regions" :show-overflow-tooltip="true" >
+                        <template slot-scope="scope">
+                            <span>{{ selectOptionsJoin("region",scope.row.regions) }}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="促销活动"
+                        align="center" prop="promotions" :show-overflow-tooltip="true" >
+                        <template slot-scope="scope">
+                            <span>{{ selectOptionsJoin("promotion",scope.row.promotions) }}</span>
+                        </template>
+                    </el-table-column>
                     <!-- <el-table-column label="促销活动" align="center" prop="promotions" :show-overflow-tooltip="true" /> -->
                     <el-table-column label="状态" align="center" prop="status" :show-overflow-tooltip="true" :formatter="(row, column, cellValue) => getStatusLabel(cellValue)"/>
                     <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
@@ -151,21 +166,48 @@
                                 placeholder="请选择游戏类型"
                                 style="width: 100%;"
                             >
-                                <el-option label="slot" value="slot"></el-option>
-                                <el-option label="poke" value="poke"></el-option>
+                                <el-option v-for="item in dictMap.casino_games" :key="item.value" :label="item.label" :value="item.value"></el-option>
                             </el-select>
                         </el-form-item>
                         <el-form-item label="支付方式" prop="paymentMethods">
-                            <el-input v-model="form.paymentMethods" placeholder="支付方式" />
+                            <el-select
+                                v-model="form.paymentMethods"
+                                multiple
+                                placeholder="请选择支付方式"
+                                style="width: 100%;"
+                            >
+                                <el-option v-for="item in dictMap.casino_payment_methods" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                            </el-select>
                         </el-form-item>
                         <el-form-item label="支持语言" prop="languages">
-                            <el-input v-model="form.languages" placeholder="支持语言" />
+                            <el-select
+                                v-model="form.languages"
+                                multiple
+                                placeholder="请选择语言"
+                                style="width: 100%;"
+                            >
+                                <el-option v-for="item in dictMap.language" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                            </el-select>
                         </el-form-item>
                         <el-form-item label="地区" prop="regions">
-                            <el-input v-model="form.regions" placeholder="地区" />
+                            <el-select
+                                v-model="form.regions"
+                                multiple
+                                placeholder="请选择地区"
+                                style="width: 100%;"
+                            >
+                                <el-option v-for="item in dictMap.region" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                            </el-select>
                         </el-form-item>
                         <el-form-item label="促销活动" prop="promotions">
-                            <el-input v-model="form.promotions" placeholder="促销活动" />
+                            <el-select
+                                v-model="form.promotions"
+                                multiple
+                                placeholder="请选择促销活动"
+                                style="width: 100%;"
+                            >
+                                <el-option v-for="item in dictMap.promotion" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                            </el-select>
                         </el-form-item>
                         <el-form-item label="状态" prop="status">
                             <el-select v-model="form.status" placeholder="请选择状态" style="width: 100%;">
@@ -214,7 +256,15 @@ export default {
             // 类型数据字典
             typeOptions: [],
             casinoList: [],
-
+            gameTypes: [],
+            paymentMethods: [],
+            dictMap: {
+                casino_payment_methods: [],
+                casino_games: [],
+                language: [],
+                region: [],
+                promotion: [],
+            },
             // 关系表类型
 
             // 查询参数
@@ -240,24 +290,43 @@ export default {
         }
     },
     created() {
+        this.loadDicts()
+        this.$nextTick(() => {})
         this.getList()
     },
     methods: {
+        loadDicts() {
+            for (let key in this.dictMap) {
+                this.getDicts(key).then(response => {
+                    this.dictMap[key] = response.data
+                    console.log('key:', key, 'value:', response.data)
+                })
+            }
+        },
         formatLink,
+        stringToArr(val) {
+            if (val && typeof val === 'string') {
+                try {
+                    val = JSON.parse(val);
+                } catch (error) {
+                    console.error('解析gameTypes失败:', error);
+                    val = [];
+                }
+                return val
+            }
+            return [];
+        },
         /** 查询参数列表 */
         getList() {
             this.loading = true
             listCasino(this.addDateRange(this.queryParams, this.dateRange)).then(response => {
                 this.casinoList = response.data.list.map(item => {
-                  if (item.gameTypes && typeof item.gameTypes === 'string') {
-                    try {
-                      item.gameTypes = JSON.parse(item.gameTypes);
-                    } catch (error) {
-                      console.error('解析gameTypes失败:', error);
-                      item.gameTypes = [];
-                    }
-                  }
-                  return item;
+                item.gameTypes = this.stringToArr(item.gameTypes);
+                item.paymentMethods = this.stringToArr(item.paymentMethods);
+                item.languages = this.stringToArr(item.languages);
+                item.regions = this.stringToArr(item.regions);
+                item.promotions = this.stringToArr(item.promotions);
+                return item;
                 });
                 this.total = response.data.count
                 this.loading = false
@@ -327,11 +396,11 @@ export default {
                 row.id || this.ids
             getCasino(id).then(response => {
                 this.form = response.data
-                this.form.gameTypes = row.gameTypes
-                ? (typeof row.gameTypes === 'string'
-                    ? JSON.parse(row.gameTypes)
-                    : row.gameTypes)
-                : []
+                this.form.gameTypes = this.stringToArr(this.form.gameTypes)
+                this.form.paymentMethods = this.stringToArr(this.form.paymentMethods)
+                this.form.languages = this.stringToArr(this.form.languages)
+                this.form.regions = this.stringToArr(this.form.regions)
+                this.form.promotions = this.stringToArr(this.form.promotions)
                 this.open = true
                 this.title = '修改Casino'
                 this.isEdit = true
@@ -342,7 +411,10 @@ export default {
             this.$refs['form'].validate(valid => {
                 const data = { ...this.form }
                 data.gameTypes = JSON.stringify(this.form.gameTypes)
-                
+                data.paymentMethods = JSON.stringify(this.form.paymentMethods)
+                data.languages = JSON.stringify(this.form.languages)
+                data.regions = JSON.stringify(this.form.regions)
+                data.promotions = JSON.stringify(this.form.promotions)
                 if (valid) {
                     if (data !== undefined) {
                         updateCasino(data).then(response => {
@@ -410,6 +482,16 @@ export default {
                 arr = Array.isArray(val) ? val : [val]
             }
             return arr.join(separator)
+        },selectOptionsJoin(dictKey,val, separator = ",") {
+            if (!val) return ''
+            let arr = []
+            try {
+                arr = JSON.parse(val)
+            } catch (e) {
+                // 兼容后端返回不是json字符串的情况
+                arr = Array.isArray(val) ? val : [val]
+            }
+            return arr.map(item => this.dictMap[dictKey].find(option => option.value === item)?.label).join(separator)
         }
     }
 }
